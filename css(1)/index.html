@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>时光摆渡人 · 城市记忆地图</title>
+  <!-- Leaflet CSS&JS CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+    }
+    #container {
+      width: 100%;
+      height: 100%;
+      background:#f3f0eb;
+    }
+    .page-header {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(255,248,235,0.92);
+      padding: 8px 18px;
+      border-radius: 99px;
+      box-shadow: 0 2px 12px rgba(139,90,43,0.18);
+    }
+    .page-header h1 {
+      font-size: 16px;
+      color: #8b5a2b;
+      font-weight: 600;
+      letter-spacing:1px;
+    }
+    .mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 2000;
+      display: none;
+    }
+    .mask.show {
+      display: block;
+    }
+    .person-card {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      width: calc(100% - 24px);
+      max-width: 440px;
+      max-height: 85vh;
+      background: #fff8eb;
+      border-radius: 20px;
+      z-index: 3000;
+      padding: 20px;
+      box-shadow: 0 6px 24px rgba(120,70,30,0.22);
+      display: none;
+      overflow-y: auto;
+    }
+    .person-card.show {
+      display: block;
+    }
+    .card-close {
+      position: absolute;
+      right: 14px;
+      top:12px;
+      font-size:22px;
+      color:#997958;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+    }
+    .card-photo-wrap {
+      text-align:center;
+      margin-bottom:12px;
+    }
+    .card-photo {
+      width:110px;
+      height:110px;
+      object-fit:cover;
+      border-radius:14px;
+      border:3px solid #e8d4bc;
+    }
+    .card-name {
+      text-align:center;
+      font-size:18px;
+      color:#704824;
+      font-weight:bold;
+      margin-bottom:4px;
+    }
+    .card-sub {
+      text-align:center;
+      font-size:13px;
+      color:#94785c;
+      margin-bottom:12px;
+    }
+    .block-title{
+      font-size:14px;
+      color:#805c38;
+      font-weight:600;
+      margin:10px 0 6px;
+    }
+    .card-quote {
+      font-size:15px;
+      color:#5c442d;
+      line-height:1.7;
+      padding:12px;
+      background:#f7ece0;
+      border-radius:12px;
+      font-style: italic;
+    }
+    .card-memoir {
+      font-size:14px;
+      color:#4b3826;
+      line-height:1.75;
+      padding:12px;
+      background:#fff3e6;
+      border-radius:12px;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <h1>时光摆渡人 · 城市记忆地图</h1>
+  </div>
+  <div id="container"></div>
+  <div class="mask" id="mask"></div>
+  <div class="person-card" id="card">
+    <button class="card-close" id="btnClose">×</button>
+    <div class="card-photo-wrap">
+      <img class="card-photo" id="cardImg" src="" alt="老人照片">
+    </div>
+    <div class="card-name" id="cardName"></div>
+    <div class="card-sub" id="cardSub"></div>
+
+    <div class="block-title">📜时代寄语</div>
+    <div class="card-quote" id="cardQuote"></div>
+
+    <div class="block-title">📖个人回忆录</div>
+    <div class="card-memoir" id="cardMemoir"></div>
+  </div>
+
+<script>
+// ==========================================================
+// HBuilderX使用说明：
+// html存放在SWOT项目根目录，和img文件夹同级
+// photoUrl路径： "./img/old01.jpg"
+// 20位老人资料来自文档，memoir为原始口述文本
+// quote为适配项目的时代寄语
+// lng、lat可后续替换为真实GPS坐标
+// ==========================================================
+const markerList = [
+  {
+    lng:126.6234,
+    lat:45.7612,
+    name:"李福贵",
+    sub:"79岁｜老街老居民",
+    photoUrl:"./img/old01.jpg",
+    quote:"河水依旧流淌，岁月悄悄变迁，那些一同相伴的故人，值得我们永远怀念。",
+    memoir:"年轻的时候这条街最热闹的就是河边，夏天一到，我们一群小伙子总爱去河里摸鱼。那时候河水清亮，岸边全是柳树。后来河道开始修整，河滩慢慢变成了公园。一晃几十年过去，河还在，可当年一起摸鱼的老朋友，剩下的已经不多了。没事我就爱来河边坐一坐，风一吹，好像又回到年轻的时候。"
+  },
+  {
+    lng:126.6270,
+    lat:45.7640,
+    name:"赵秀琴",
+    sub:"77岁｜土生土长老街住户",
+    photoUrl:"./img/old02.jpg",
+    quote:"城市越变越好，最难忘的还是过去清贫日子里，邻里之间那份滚烫的人情味。",
+    memoir:"小时候我总在这片土路上疯跑，那时候没有高楼，没有门市房，放眼望去全是空地和小平房。每到饭点，整条巷子都是饭菜的香味，邻里互相分享吃食，特别有人间烟火。那时候日子清贫，但是人心特别暖。后来慢慢建设、改造，街道越来越规整，生活越来越便利。现在每天吃完饭下楼遛弯，和老邻居唠唠旧事，晚年生活安稳又舒心。"
+  },
+  {
+    lng:126.6185,
+    lat:45.7580,
+    name:"周建军",
+    sub:"78岁｜工厂退休门卫",
+    photoUrl:"./img/old03.jpg",
+    quote:"机器的轰鸣已经远去，但那段热火朝天奋斗的岁月，永远留在记忆当中。",
+    memoir:"我以前在旁边的工厂当门卫，一干就是二十多年。每天看着工人早出晚归，整条街跟着工厂的闹钟起床休息。后来工厂慢慢搬迁，机器的轰鸣声消失了，安静了许多。现在路过老厂房的旧址，心里总空落落的，那段热火朝天的岁月，再也回不来喽。"
+  },
+  {
+    lng:126.6310,
+    lat:45.7633,
+    name:"刘凤英",
+    sub:"76岁｜老街常住居民",
+    photoUrl:"./img/old04.jpg",
+    quote:"孩子长大奔赴远方，故土老街依旧守候，这里藏着一代人全部的青春。",
+    memoir:"当年搬家过来的时候，我家孩子才刚满一岁。整条街上同龄的小孩就那么几个，天天凑在一起疯玩。孩子们慢慢长大，读书、工作、去外地安家，一个个离开了老街。如今只剩我们这些老人还守在这里。每次看见街上奔跑的小朋友，我总会想起自家孩子小时候的模样。"
+  },
+  {
+    lng:126.6201,
+    lat:45.7665,
+    name:"陈德海",
+    sub:"82岁｜老街老住户",
+    photoUrl:"./img/old05.jpg",
+    quote:"老树可以被砍伐，但树下乘凉闲谈的记忆，永远不会被时代抹去。",
+    memoir:"我这辈子最喜欢的就是老街的老槐树。刚搬来时它还不算粗壮，几十年风吹雨打，树冠长得遮天蔽日。夏天大伙都在树下乘凉下棋。后来道路拓宽，老树被砍掉了。树没有了，但是夏天在树荫下聊天的画面，一直深深印在我的脑海里面。"
+  },
+  {
+    lng:126.6258,
+    lat:45.7562,
+    name:"马桂珍",
+    sub:"75岁｜社区老居民",
+    photoUrl:"./img/old06.jpg",
+    quote:"生活越来越便捷，可旧时结伴赶集，一路说说笑笑的烟火时光格外珍贵。",
+    memoir:"刚来这边没有菜市场，买菜得走上四五里路。大家相约着，每到赶集的日子，结伴徒步去采购。一路上边走边唠，说说笑笑，一点都不觉得累。后来楼下就建了菜市场，出门几步路就能买到新鲜的菜。生活方便了，却很少再有一群人结伴赶集的热闹景象。"
+  },
+  {
+    lng:126.6340,
+    lat:45.7605,
+    name:"吴长明",
+    sub:"81岁｜退休乡村教师",
+    photoUrl:"./img/old07.jpg",
+    quote:"旧校舍可以推倒重建，教书育人的初心，一届一届留在学生的心里面。",
+    memoir:"这条街上最早只有一所简陋的小学校，教室都是平房。那时候条件艰苦，冬天教室里生炉子取暖，到处飘着煤灰。我就是那所学校的老师，送走了一届又一届学生。前些年老学校拆除重建，崭新的教学楼拔地而起。偶尔在街上，还能碰到当年我教过的学生。"
+  },
+  {
+    lng:126.6150,
+    lat:45.7622,
+    name:"郑晓华",
+    sub:"80岁｜老街居民",
+    photoUrl:"./img/old08.jpg",
+    quote:"街道灯火万家，依旧怀念手电筒微光之下，邻里结伴夜行的温暖夜晚。",
+    memoir:"以前这条街一到晚上就黑漆漆的，路灯很少。晚上出门，大家都要带上手电筒。邻里之间出门，都会互相招呼一声，结伴而行。后来街道改造，路灯一盏盏亮起来，夜晚的街道灯火通明。城市越来越亮，可过去手电筒光束下边走边聊天的夜晚，让我格外怀念。"
+  },
+  {
+    lng:126.6295,
+    lat:45.7540,
+    name:"孙淑兰",
+    sub:"77岁｜家属院老住户",
+    photoUrl:"./img/old09.jpg",
+    quote:"老水井已经消失在楼房之下，但排队挑水、闲谈唠嗑的热闹场景不会遗忘。",
+    memoir:"当年我们家属院没有自来水，家家户户都要走到街口的公共水井挑水。一到打水的时候，水井边上就排起长队，大家一边等水一边拉家常。后来水管接到了每家每户，挑水的日子也就结束了。那口老井早就填平盖上了楼房，但是挑水时热热闹闹的场面，我一直忘不掉。"
+  },
+  {
+    lng:126.6122,
+    lat:45.7591,
+    name:"高卫国",
+    sub:"78岁｜街道老居民",
+    photoUrl:"./img/old10.jpg",
+    quote:"交通工具迭代更新，自行车叮叮当当的岁月，刻在了这座城市的记忆里。",
+    memoir:"我年轻的时候，整条街上几乎没有私家车，出门全靠走路或者骑自行车。上下班高峰期，整条街道都是自行车的洪流。几十年过去了，街上车流不息，到处都是汽车。时代进步太快，有时候站在路边看着来往的车辆，总会想起当年自行车叮铃铃驶过的时光。"
+  },
+  {
+    lng:126.6361,
+    lat:45.7644,
+    name:"何春莲",
+    sub:"76岁｜老街住户",
+    photoUrl:"./img/old11.jpg",
+    quote:"物质条件日渐富足，心中依旧怀念从前过年时节，整条街巷浓浓的年味。",
+    memoir:"从前过年是这条街一年当中最热闹的时候。腊月里家家户户开始大扫除、蒸馒头、炸丸子，整条巷子飘满香味。除夕夜大家敞开家门，互相拜年串门。现在楼房的房门一关，邻里走动变少了。虽然物质条件越来越好，可我总想念从前过年那股浓浓的年味。"
+  },
+  {
+    lng:126.6218,
+    lat:45.7521,
+    name:"曲振山",
+    sub:"83岁｜见证街道三次修路",
+    photoUrl:"./img/old12.jpg",
+    quote:"脚下道路越修越宽阔，时代一步步向前，我们也慢慢走向暮年。",
+    memoir:"我见证了这条街三次修路。第一次是泥土路，第二次铺上砂石，第三次修成平整的柏油马路。每一次修路，整条街都要热闹一阵子。路越修越宽，出行越来越顺畅。脚下的路变了又变，而我在这里的日子，一年一年慢慢走到了晚年。"
+  },
+  {
+    lng:126.6166,
+    lat:45.7673,
+    name:"杨雪梅",
+    sub:"74岁｜街角老住户",
+    photoUrl:"./img/old13.jpg",
+    quote:"如今消息都在手机里流传，难忘当年街角闲谈，整条街巷互通消息的时光。",
+    memoir:"当年我家就在街角，那一块是整条街的消息中心。街坊邻里下班路过，总要停下来站一会儿，聊聊最近发生的新鲜事。谁家孩子考上学校，谁家出了喜事，不出半天整条街全都知道。现在大家都刷手机看新闻，很少再站在街角闲谈，老街的消息角，也就慢慢消失了。"
+  },
+  {
+    lng:126.6325,
+    lat:45.7574,
+    name:"刘春华",
+    sub:"73岁｜土生土长老街人",
+    photoUrl:"./img/old14.jpg",
+    quote:"老街不断翻新变迁，烟火与人情，是刻在心底最珍贵的一份感恩。",
+    memoir:"小时候最快乐的时光，就是在这条老街的土路上玩耍。那时候没有繁华的商铺，没有整齐的楼房，满眼都是荒草和平房。饭点的烟火气、邻里的寒暄声、孩子们的嬉闹声，就是整条街最热闹的风景。后来时代发展，老街慢慢改造升级，破旧的地方全部翻新，生活越来越方便。现在我老了，每天遛弯散步，看着熟悉的街区，心里满是怀念和感恩。"
+  },
+  {
+    lng:126.6247,
+    lat:45.7681,
+    name:"吕向东",
+    sub:"80岁｜工厂老职工",
+    photoUrl:"./img/old15.jpg",
+    quote:"露天电影已经成为过往，可当年人山人海，共享一场电影的夜晚难以忘怀。",
+    memoir:"工厂刚建成的时候，经常会放露天电影。每到放映的傍晚，大人小孩搬着小板凳早早赶来占位置。荧幕一亮，全场安安静静。后来家家户户都买上了电视机，露天电影也就不再举办。现在偶尔路过当年放电影的空地，我还能回想起当初人声鼎沸的夜晚。"
+  },
+  {
+    lng:126.6104,
+    lat:45.7553,
+    name:"崔美华",
+    sub:"75岁｜社区老居民",
+    photoUrl:"./img/old16.jpg",
+    quote:"就医条件越来越好，邻里互相帮扶送药的那份善良，始终值得我们铭记。",
+    memoir:"刚搬过来，整条街上几乎没有诊所，生了小病都得走很远看病。邻里之间谁家有常备药，都会主动拿出来分给大家应急。后来社区卫生服务站就建在了小区门口，看病拿药特别方便。医疗条件越来越好，但是当年邻里互助、送药上门的温暖，我一直记在心间。"
+  },
+  {
+    lng:126.6377,
+    lat:45.7617,
+    name:"江少峰",
+    sub:"79岁｜家属院居民",
+    photoUrl:"./img/old17.jpg",
+    quote:"小菜园虽然消失不见，城市广场欣欣向荣，旧时光与新生活各有美好。",
+    memoir:"我们家属院从前有一大片空地，开春大家就在空地上开辟小菜园，种上青菜豆角。一到夏天绿油油一片，谁家缺点菜，直接去菜园摘一把就行。后来城市规划，空地改成了居民休闲广场。小菜园虽然没有了，但是广场上每天热热闹闹，又是另一番新气象。"
+  },
+  {
+    lng:126.6282,
+    lat:45.7513,
+    name:"段传国",
+    sub:"81岁｜常年漂泊后归乡",
+    photoUrl:"./img/old18.jpg",
+    quote:"走遍四方才懂得，看过世间万千风景，最安心的归宿依旧是故土老街。",
+    memoir:"我年轻的时候总想着离开这条老街，去更大更远的城市闯荡。兜兜转转大半辈子过去了，走过很多地方，最后才发现最安心的地方还是这里。外面的世界再繁华，也比不上老街带给我的归属感。到老了才懂得，最珍贵的风景，原来一直就在脚下。"
+  },
+  {
+    lng:126.6193,
+    lat:45.7694,
+    name:"葛淑珍",
+    sub:"77岁｜老街常住老人",
+    photoUrl:"./img/old19.jpg",
+    quote:"爱人虽已远去，街巷一砖一瓦留存回忆，走在街上仿佛故人还在身旁。",
+    memoir:"我老伴当年就是在这条街上和我相识。我们在这里成家，养育儿女，风风雨雨走过大半辈子。街上的一砖一瓦，都藏着我们两个人的回忆。如今老伴已经不在了，我依旧守着这条老街。每次走在街上，就好像他还陪在我的身旁。"
+  },
+  {
+    lng:126.6348,
+    lat:45.7531,
+    name:"薛丽娟",
+    sub:"74岁｜老街住户",
+    photoUrl:"./img/old20.jpg",
+    quote:"书信时代悄然落幕，一纸家书承载的牵挂，依旧值得好好珍藏。",
+    memoir:"早些年这条街上的通信很不方便，和远方亲人联系只能靠写信。邮递员每天下午准时沿街送信，一看见他的身影，整条街的人都很期待收到家书。后来电话、手机慢慢普及，书信时代结束了。现在我还保存着几十年前亲人写给我的几封信件。"
+  }
+];
+// ==========================================================
+
+const domMask = document.getElementById('mask');
+const domCard = document.getElementById('card');
+const domCardImg = document.getElementById('cardImg');
+const domCardName = document.getElementById('cardName');
+const domCardSub = document.getElementById('cardSub');
+const domCardQuote = document.getElementById('cardQuote');
+const domCardMemoir = document.getElementById('cardMemoir');
+
+let map = null;
+
+window.onload = function () {
+  map = L.map('container').setView([45.7612, 126.6234],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png', {
+    maxZoom:18,
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  markerList.forEach(item=>{
+    const marker = L.marker([item.lat, item.lng]).addTo(map);
+    marker.on('click', ()=>{
+      openCard(item);
+    })
+  })
+};
+
+function openCard(person){
+  domCardImg.src = person.photoUrl;
+  domCardName.innerText = person.name;
+  domCardSub.innerText = person.sub;
+  domCardQuote.innerText = person.quote;
+  domCardMemoir.innerText = person.memoir;
+
+  domMask.classList.add('show');
+  domCard.classList.add('show');
+  domCard.scrollTop = 0;
+}
+
+function closeCard(){
+  domMask.classList.remove('show');
+  domCard.classList.remove('show');
+}
+
+document.getElementById('btnClose').addEventListener('click', closeCard);
+domMask.addEventListener('click', closeCard);
+</script>
+</body>
+</html>
