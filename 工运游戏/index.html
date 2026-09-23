@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>冰城工运记忆 - 展馆研学闯关小游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+        body {
+            background-color: #222;
+            color: #fff;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .page {
+            display: none;
+            padding: 24px;
+            border-radius: 16px;
+            background: #331818;
+            border: 2px solid #c82423;
+        }
+        .page.active {
+            display: block;
+        }
+        h1,h2{
+            color:#ff4444;
+            margin-bottom:16px;
+            text-align:center;
+        }
+        .desc{
+            line-height:1.7;
+            margin-bottom:20px;
+            font-size:16px;
+        }
+        .info-bar{
+            display:flex;
+            justify-content:space-between;
+            padding:10px;
+            background:#441f1f;
+            border-radius:8px;
+            margin-bottom:20px;
+        }
+        .btn{
+            display:block;
+            width:100%;
+            padding:12px;
+            margin:8px 0;
+            font-size:16px;
+            border:none;
+            border-radius:8px;
+            cursor:pointer;
+            background:#c82423;
+            color:white;
+        }
+        .btn.option{
+            background:#442222;
+        }
+        .btn.option:hover{
+            background:#c82423;
+        }
+        .btn:disabled{
+            background:#666;
+            cursor:not-allowed;
+        }
+        .tip{
+            padding:12px;
+            margin:12px 0;
+            border-radius:8px;
+        }
+        .right{
+            background:#1e4620;
+        }
+        .wrong{
+            background:#501515;
+        }
+        .cert{
+            background:#fff;
+            color:#222;
+            padding:30px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 开始页 -->
+    <div id="start" class="page active">
+        <h1>冰城工运记忆</h1>
+        <h2>哈尔滨工运历史展馆 · 研学闯关</h2>
+        <p class="desc">欢迎来到研学闯关小游戏。<br>
+        你将走进哈尔滨工运历史展览馆，穿越百年时光，了解冰城工人运动的奋斗故事。<br>
+        阅读史料、回答问题，收集【工运星火】，完成研学，领取结业证书！</p>
+        <button class="btn" onclick="startGame()">开始研学</button>
+    </div>
+
+    <!-- 游戏主页面 -->
+    <div id="game" class="page">
+        <div class="info-bar">
+            <span>当前展区：<span id="chapterName">序章</span></span>
+            <span>工运星火：<span id="score">0</span></span>
+        </div>
+        <h2 id="title">展区标题</h2>
+        <p class="desc" id="content">史料介绍文本</p>
+        <div id="question-box"></div>
+        <div id="tip-box" class="tip"></div>
+        <button class="btn" id="nextBtn" style="display:none" onclick="nextChapter()">前往下一展区</button>
+    </div>
+
+    <!-- 通关证书页 -->
+    <div id="cert" class="page">
+        <div class="cert">
+            <h2>研学结业证书</h2>
+            <p class="desc">恭喜你完成哈尔滨工运历史展览馆全部展区研学！</p>
+            <p>累计收集工运星火：<span id="finalScore"></span> 点</p>
+            <p>你已了解哈尔滨工人运动百年奋斗历程。</p>
+            <button class="btn" onclick="restartGame()">重新研学</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 游戏数据：5个章节，对应展馆5大板块
+    const chapters = [
+        {
+            name:"馆外序章",
+            title:"展馆序章：红色工运阵地",
+            content:"哈尔滨工运历史展览馆，是全国职工爱国主义教育基地。展馆记录哈尔滨工人从近代以来，为民族解放、城市建设不懈奋斗的百年历程。雕塑象征工人力量，是冰城红色工运精神的象征。",
+            question:{
+                q:"哈尔滨工运历史展览馆是什么类型基地？",
+                options:["全国职工爱国主义教育基地","国防教育基地"],
+                answer:0
+            }
+        },
+        {
+            name:"风起北疆·工运觉醒",
+            title:"风起北疆·工运觉醒",
+            content:"中东铁路修建后，大批工人聚集哈尔滨。20世纪初，工人受到压迫，开始觉醒。哈尔滨工人组织罢工，反抗压迫，是东北工人运动最早兴起的地区之一。",
+            question:{
+                q:"哈尔滨早期工人运动，和哪条铁路密切相关？",
+                options:["中东铁路","京沪铁路"],
+                answer:0
+            }
+        },
+        {
+            name:"实干报国·建设冰城",
+            title:"实干报国·建设冰城",
+            content:"新中国成立后，哈尔滨工人投身城市建设。工厂、电站、交通建设，无数工人艰苦奋斗，将哈尔滨建设成为东北重要工业城市。",
+            question:{
+                q:"建国后哈尔滨工人主要投身哪项事业？",
+                options:["城市工业建设","远洋贸易"],
+                answer:0
+            }
+        },
+        {
+            name:"榜样力量·劳模之光",
+            title:"榜样力量·劳模之光",
+            content:"在冰城建设中涌现大批劳动模范。劳模爱岗敬业、无私奉献，他们的精神激励一代又一代劳动者，是工运精神生动体现。",
+            question:{
+                q:"劳模精神的核心是？",
+                options:["爱岗敬业，艰苦奋斗","追求安逸享受"],
+                answer:0
+            }
+        },
+        {
+            name:"工会发展·接续奋进",
+            title:"工会发展·接续奋进",
+            content:"新时代，工会组织持续维护职工权益，传承红色工运基因，凝聚工人力量，在现代化建设中接续奋斗。",
+            question:{
+                q:"新时代工会工作的目标是？",
+                options:["维护职工权益，凝聚劳动者力量","单纯组织娱乐活动"],
+                answer:0
+            }
+        }
+    ]
+
+    let currentChapterIndex = 0;
+    let score = 0;
+    let answered = false;
+
+    // DOM元素
+    const startPage = document.getElementById('start');
+    const gamePage = document.getElementById('game');
+    const certPage = document.getElementById('cert');
+    const chapterNameEl = document.getElementById('chapterName');
+    const titleEl = document.getElementById('title');
+    const contentEl = document.getElementById('content');
+    const scoreEl = document.getElementById('score');
+    const questionBox = document.getElementById('question-box');
+    const tipBox = document.getElementById('tip-box');
+    const nextBtn = document.getElementById('nextBtn');
+    const finalScoreEl = document.getElementById('finalScore');
+
+    // 开始游戏
+    function startGame(){
+        startPage.classList.remove('active');
+        gamePage.classList.add('active');
+        loadChapter(0);
+    }
+
+    // 加载章节
+    function loadChapter(idx){
+        currentChapterIndex = idx;
+        answered = false;
+        tipBox.innerHTML = "";
+        nextBtn.style.display = "none";
+        const chapter = chapters[idx];
+        chapterNameEl.innerText = chapter.name;
+        titleEl.innerText = chapter.title;
+        contentEl.innerText = chapter.content;
+        scoreEl.innerText = score;
+
+        // 渲染选择题
+        const q = chapter.question;
+        let html = `<p><strong>研学问答：</strong>${q.q}</p>`;
+        q.options.forEach((opt,i)=>{
+            html += `<button class="btn option" onclick="selectAnswer(${i})">${opt}</button>`
+        })
+        questionBox.innerHTML = html;
+    }
+
+    // 选择答案
+    function selectAnswer(i){
+        if(answered) return;
+        answered = true;
+        const chapter = chapters[currentChapterIndex];
+        const q = chapter.question;
+        // 禁用所有选项按钮
+        document.querySelectorAll(".option").forEach(b=>b.disabled=true);
+
+        if(i === q.answer){
+            score += 20;
+            scoreEl.innerText = score;
+            tipBox.className = "tip right";
+            tipBox.innerHTML = "✅回答正确！获得20点工运星火";
+        }else{
+            tipBox.className = "tip wrong";
+            tipBox.innerHTML = `❌回答错误。正确答案：${q.options[q.answer]}`;
+        }
+        nextBtn.style.display = "block";
+    }
+
+    // 下一章 / 通关
+    function nextChapter(){
+        if(currentChapterIndex < chapters.length -1){
+            loadChapter(currentChapterIndex+1);
+        }else{
+            // 通关，跳证书页面
+            gamePage.classList.remove('active');
+            certPage.classList.add('active');
+            finalScoreEl.innerText = score;
+        }
+    }
+
+    // 重新开始
+    function restartGame(){
+        score = 0;
+        currentChapterIndex = 0;
+        certPage.classList.remove('active');
+        startPage.classList.add('active');
+    }
+</script>
+</body>
+</html>
